@@ -5,14 +5,13 @@ import { sendNotificationEmail } from './emailService.js';
 export function initScheduler() {
   console.log('[SCHEDULER] Initializing background task jobs...');
 
-  // 1. Run every 1 minute to check for medication reminders
+  // 1. Run every minute to check medication reminders.
   cron.schedule('* * * * *', async () => {
     try {
       const now = new Date();
       const currentDateStr = now.toISOString().split('T')[0];
       const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-      // Query active prescriptions and matching reminders
       const pendingReminders = db.prepare(`
         SELECT r.id as reminder_id, r.prescription_id, r.patient_id, p.medication_name, p.dosage, p.frequency, p.instructions, u.email as patient_email, u.name as patient_name
         FROM medication_reminders r
@@ -23,7 +22,6 @@ export function initScheduler() {
 
       for (const rem of pendingReminders) {
         console.log(`[MEDICATION REMINDER] Sending reminder for ${rem.medication_name} to ${rem.patient_name}`);
-
         await sendNotificationEmail({
           userId: rem.patient_id,
           recipientEmail: rem.patient_email,
@@ -32,8 +30,6 @@ export function initScheduler() {
           type: 'MEDICATION_REMINDER',
           metadata: { prescriptionId: rem.prescription_id, reminderId: rem.reminder_id }
         });
-
-        // Mark as SENT
         db.prepare(`UPDATE medication_reminders SET status = 'SENT', sent_at = CURRENT_TIMESTAMP WHERE id = ?`).run(rem.reminder_id);
       }
     } catch (err) {
@@ -41,7 +37,7 @@ export function initScheduler() {
     }
   });
 
-  // 2. Run every 15 minutes for 24-hour appointment reminder check
+  // 2. Run every 15 minutes for next-day appointment reminders.
   cron.schedule('*/15 * * * *', async () => {
     try {
       const tomorrow = new Date();
@@ -49,7 +45,9 @@ export function initScheduler() {
       const targetDateStr = tomorrow.toISOString().split('T')[0];
 
       const upcomingAppointments = db.prepare(`
-        SELECT a.id, a.appointment_date, a.time_slot, pu.name as patient_name, pu.email as patient_email, du.name as doctor_name, doc.specialization
+        SELECT a.id, a.patient_id, a.appointment_date, a.time_slot,
+               pu.name as patient_name, pu.email as patient_email,
+               du.name as doctor_name, doc.specialization
         FROM appointments a
         JOIN users pu ON a.patient_id = pu.id
         JOIN doctors doc ON a.doctor_id = doc.id
@@ -58,13 +56,13 @@ export function initScheduler() {
       `).all(targetDateStr);
 
       for (const appt of upcomingAppointments) {
-        // Check if reminder was already logged
         const existing = db.prepare(`
-          SELECT id FROM notifications 
+          SELECT id FROM notifications
           WHERE user_id = ? AND type = 'APPOINTMENT_REMINDER' AND metadata LIKE ?
         `).get(appt.patient_id, `%${appt.id}%`);
 
         if (!existing) {
+          console.log(`[APPOINTMENT REMINDER] Sending reminder for appointment ${appt.id} to ${appt.patient_name}`);
           await sendNotificationEmail({
             userId: appt.patient_id,
             recipientEmail: appt.patient_email,
