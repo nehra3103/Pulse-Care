@@ -3,6 +3,8 @@ import DoctorCard from '../components/DoctorCard.jsx';
 import BookingModal from '../components/BookingModal.jsx';
 import { Search, Calendar, Pill, CheckCircle2, Download, ExternalLink, Sparkles, FileText, Activity, Trash2 } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function PatientPortal({ patient, doctors, appointments, onRefresh }) {
   const [activeTab, setActiveTab] = useState('EXPLORE');
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,10 +15,22 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
 
   useEffect(() => {
     if (!patient) return;
-    fetch(`/api/prescriptions/patient/${patient.id}`)
-      .then(res => res.json())
-      .then(data => setPrescriptions(data || []))
-      .catch(console.error);
+    if (!API_URL) {
+      console.error('Backend API URL is not configured. Please set VITE_API_URL in Vercel.');
+      setPrescriptions([]);
+      return;
+    }
+
+    fetch(`${API_URL}/api/prescriptions/patient/${patient.id}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Failed to load prescriptions (${res.status})`);
+        return res.json();
+      })
+      .then(data => setPrescriptions(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error('Failed to load prescriptions:', err);
+        setPrescriptions([]);
+      });
   }, [patient, appointments]);
 
   const specializations = ['ALL', ...new Set(doctors.map(d => d.specialization))];
@@ -104,7 +118,6 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
       {/* TAB 1: EXPLORE & BOOK DOCTORS */}
       {activeTab === 'EXPLORE' && (
         <div className="space-y-5">
-          {/* Search & Filter Bar */}
           <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 flex flex-col md:flex-row items-center justify-between gap-3">
             <div className="relative w-full md:w-80">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -117,7 +130,6 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
               />
             </div>
 
-            {/* Specialization Tags */}
             <div className="flex items-center space-x-1 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
               {specializations.map(spec => (
                 <button
@@ -135,7 +147,6 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
             </div>
           </div>
 
-          {/* Doctor Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredDoctors.length === 0 ? (
               <div className="col-span-full py-12 text-center text-slate-500 text-xs">
@@ -202,7 +213,8 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
                     <button
                       onClick={async () => {
                         if (confirm(`Are you sure you want to delete this appointment entry?`)) {
-                          await fetch(`/api/appointments/${appt.id}`, { method: 'DELETE' });
+                          if (!API_URL) return alert('Backend API URL is not configured.');
+                          await fetch(`${API_URL}/api/appointments/${appt.id}`, { method: 'DELETE' });
                           onRefresh();
                         }
                       }}
@@ -215,7 +227,6 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
                   </div>
                 </div>
 
-                {/* Pre-Visit Symptoms & Urgency */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1">
                     <span className="text-slate-500 font-medium block flex items-center space-x-1">
@@ -237,7 +248,6 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
                   </div>
                 </div>
 
-                {/* Post Visit Summary */}
                 {appt.status === 'COMPLETED' && appt.post_visit_summary && (
                   <div className="p-3.5 rounded-lg bg-emerald-50/50 border border-emerald-200 space-y-2">
                     <h4 className="text-xs font-semibold text-emerald-800 flex items-center space-x-1.5">
@@ -250,7 +260,6 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
                   </div>
                 )}
 
-                {/* Calendar Sync Links */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   <div className="flex items-center space-x-2">
                     <a
@@ -264,7 +273,7 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
                     </a>
 
                     <a
-                      href={`/api/appointments/${appt.id}/ical`}
+                      href={`${API_URL}/api/appointments/${appt.id}/ical`}
                       download
                       className="flex items-center space-x-1 px-3 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition"
                     >
@@ -326,7 +335,6 @@ export default function PatientPortal({ patient, doctors, appointments, onRefres
         </div>
       )}
 
-      {/* Booking Modal Popup */}
       {selectedDoctorForBooking && (
         <BookingModal
           doctor={selectedDoctorForBooking}
