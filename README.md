@@ -1,6 +1,44 @@
-# Pulse Care
+# Pulse Care 🩺
 
-A healthcare appointment booking and follow-up management system built with React, Node.js, Express, SQLite, Google Gemini, and Nodemailer.
+A full-stack healthcare appointment booking and follow-up management system built with **React, Node.js, Express, SQLite, Google Gemini, and Nodemailer**.
+
+## Live Deployment
+
+- **Frontend:** https://pulse-care-flax.vercel.app
+- **Backend API:** https://pulse-care-backend-pz3p.onrender.com
+- **Health check:** https://pulse-care-backend-pz3p.onrender.com/api/health
+
+> Note: The backend is hosted on Render's free tier and may take some time to wake up after inactivity.
+
+## Features
+
+- Patient, doctor, and admin workflows
+- Doctor discovery and appointment booking
+- Real-time available-slot calculation
+- Double-booking prevention
+- Doctor leave conflict handling
+- AI-generated pre-visit and post-visit summaries
+- Appointment confirmation and notification emails
+- Prescription and medication reminder support
+- Google Calendar event links and `.ics` export
+- SQLite-backed persistence
+- Production deployment on Vercel and Render
+
+## Repository Structure
+
+```text
+Pulse-Care/
+├── client/                 # React + Vite frontend
+│   ├── .env.example        # Frontend environment template
+│   └── src/
+├── server/                 # Node.js + Express backend
+│   ├── .env.example        # Backend environment template
+│   ├── db/schema.sql       # Database schema
+│   └── ...
+├── README.md               # Setup guide, API docs and technical details
+├── SYSTEM_DESIGN.md        # Assignment system-design write-up (<800 words)
+└── render.yaml             # Render deployment configuration
+```
 
 ## Setup Guide
 
@@ -9,7 +47,7 @@ A healthcare appointment booking and follow-up management system built with Reac
 - Node.js 22 or newer
 - npm
 - Optional: Google Gemini API key for AI features
-- Optional: SMTP credentials for email notifications
+- Optional: SMTP credentials for real email notifications
 
 ### 1. Clone the repository
 
@@ -20,14 +58,29 @@ cd Pulse-Care
 
 ### 2. Configure environment variables
 
-Copy the example environment file:
+#### Backend
 
 ```bash
 cd server
 cp .env.example .env
 ```
 
-Add the required credentials to `.env`.
+Add your credentials to `server/.env` if you want Gemini and SMTP features enabled.
+
+#### Frontend
+
+```bash
+cd ../client
+cp .env.example .env
+```
+
+For local development, use:
+
+```env
+VITE_API_URL=http://localhost:5050/api
+```
+
+For production, configure `VITE_API_URL` with the deployed backend URL in your hosting provider's environment settings.
 
 ### 3. Install and run the backend
 
@@ -65,9 +118,9 @@ Open the URL displayed by Vite, normally:
 http://localhost:3000
 ```
 
-## `.env.example`
+## Environment Variables
 
-The project includes `server/.env.example` with the following variables:
+### Server: `server/.env.example`
 
 ```env
 PORT=5050
@@ -91,12 +144,28 @@ SMTP_PASS=
 | `SMTP_USER` | SMTP username. |
 | `SMTP_PASS` | SMTP password or app password. |
 
+### Client: `client/.env.example`
+
+```env
+VITE_API_URL=http://localhost:5050/api
+```
+
+| Variable | Description |
+|---|---|
+| `VITE_API_URL` | Base URL of the backend API used by the frontend. |
+
 ## API Documentation
 
 Base URL:
 
 ```text
 http://localhost:5050/api
+```
+
+Production base URL:
+
+```text
+https://pulse-care-backend-pz3p.onrender.com/api
 ```
 
 ### Health
@@ -149,36 +218,25 @@ http://localhost:5050/api
 
 ## Database Schema
 
-The database schema is available in `server/db/schema.sql`.
+The full database schema is available in `server/db/schema.sql`.
 
-### `users`
-Stores patients, doctors, and administrators with name, email, role, phone, avatar, and creation time.
+### Main tables
 
-### `doctors`
-Stores doctor profiles linked to users, including specialization, bio, experience, consultation fee, working hours, and slot duration.
+- **`users`** — Patients, doctors, and administrators with profile data.
+- **`doctors`** — Doctor specialization, bio, experience, fees, working hours, and slot duration.
+- **`doctor_leaves`** — Doctor leave dates and reasons. A unique `(doctor_id, leave_date)` constraint prevents duplicates.
+- **`appointments`** — Patient/doctor relationship, date, slot, status, symptoms, severity, AI output, notes, summaries, and calendar data.
+- **`prescriptions`** — Medication name, dosage, frequency, duration, instructions, and start date.
+- **`medication_reminders`** — Scheduled reminders with `PENDING`, `SENT`, or `FAILED` status.
+- **`notifications`** — Application notification events and delivery metadata.
 
-### `doctor_leaves`
-Stores doctor leave dates and reasons. A unique `(doctor_id, leave_date)` constraint prevents duplicate leave entries.
-
-### `appointments`
-Stores patient and doctor relationships, appointment date and time, status, symptoms, severity, AI output, clinical notes, post-visit summary, and calendar data.
-
-The application prevents duplicate active appointments for the same doctor, date, and slot through a unique partial index:
+### Double-booking constraint
 
 ```sql
 CREATE UNIQUE INDEX idx_unique_active_appointment
 ON appointments(doctor_id, appointment_date, time_slot)
 WHERE status NOT IN ('CANCELLED', 'CANCELLED_DUE_TO_LEAVE');
 ```
-
-### `prescriptions`
-Stores medication name, dosage, frequency, duration, instructions, and start date for an appointment.
-
-### `medication_reminders`
-Stores scheduled medication reminders with `PENDING`, `SENT`, or `FAILED` status.
-
-### `notifications`
-Stores application notification events with type, title, message, channel, metadata, and status.
 
 ### Relationships
 
@@ -201,7 +259,7 @@ The application sends the following task to Gemini:
 
 > Analyse these symptoms and return: urgency level (Low / Medium / High), chief complaint, and three suggested questions for the doctor. Symptoms: `<symptoms>`
 
-The expected JSON format is:
+Expected JSON:
 
 ```json
 {
@@ -240,3 +298,42 @@ GET /api/appointments/:id/ical
 ```
 
 This downloads an `.ics` file that can be imported into compatible calendar applications.
+
+## System Design Submission
+
+The assignment-specific write-up is available in [`SYSTEM_DESIGN.md`](./SYSTEM_DESIGN.md) and covers:
+
+- Double-booking prevention
+- Doctor leave conflict handling
+- Slot-hold mechanism
+- Notification failure handling
+
+## Deployment
+
+### Frontend — Vercel
+
+The frontend is deployed on Vercel from the `client` directory. Configure:
+
+```env
+VITE_API_URL=https://pulse-care-backend-pz3p.onrender.com/api
+```
+
+### Backend — Render
+
+The backend is deployed as a Node web service using the included `render.yaml`. Render automatically runs the service from the repository configuration.
+
+## Submission Checklist
+
+- [x] Complete frontend and backend source code in this repository
+- [x] README with setup guide
+- [x] `client/.env.example` and `server/.env.example`
+- [x] API documentation
+- [x] Database schema
+- [x] LLM prompts/workflow documentation
+- [x] Google Calendar setup/documentation
+- [x] Hosted application URL
+- [x] System design write-up
+
+---
+
+**Repository:** https://github.com/nehra3103/Pulse-Care
