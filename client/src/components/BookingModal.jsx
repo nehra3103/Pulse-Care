@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Activity, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function BookingModal({ doctor, patient, onClose, onBookingSuccess }) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -11,12 +13,9 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
   const [isLeave, setIsLeave] = useState(false);
   const [leaveReason, setLeaveReason] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
-  
-  // Symptom Form State
   const [symptoms, setSymptoms] = useState('');
   const [onsetDate, setOnsetDate] = useState(defaultDateStr);
   const [severity, setSeverity] = useState(5);
-
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -30,7 +29,7 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
     setLoadingSlots(true);
     setErrorMsg('');
     try {
-      const res = await fetch(`/api/doctors/${doctor.id}/available-slots?date=${selectedDate}`);
+      const res = await fetch(`${API_URL}/api/doctors/${doctor.id}/available-slots?date=${selectedDate}`);
       const data = await res.json();
       if (res.ok) {
         setIsLeave(data.isLeave);
@@ -62,7 +61,7 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
     setErrorMsg('');
 
     try {
-      const res = await fetch('/api/appointments', {
+      const res = await fetch(`${API_URL}/api/appointments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -100,8 +99,6 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
       <div className="bg-white w-full max-w-xl rounded-2xl border border-slate-200 shadow-xl p-6 my-8 relative">
-        
-        {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg bg-slate-100 transition"
@@ -109,7 +106,6 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
           <X className="w-4 h-4" />
         </button>
 
-        {/* Header */}
         <div className="flex items-center space-x-3.5 border-b border-slate-100 pb-4">
           <img src={doctor.avatar} alt={doctor.name} className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 object-cover" />
           <div>
@@ -129,8 +125,6 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
         )}
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-5">
-          
-          {/* Select Date & Slot */}
           <div className="space-y-3">
             <label className="text-xs font-semibold text-slate-800 flex items-center space-x-1.5">
               <Calendar className="w-4 h-4 text-blue-600" />
@@ -159,7 +153,6 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
               </div>
             </div>
 
-            {/* Time Slot Picker Grid */}
             {loadingSlots ? (
               <div className="py-4 text-center text-xs text-slate-500 flex items-center justify-center space-x-2">
                 <Clock className="w-4 h-4 animate-spin text-blue-600" />
@@ -200,7 +193,6 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
             )}
           </div>
 
-          {/* Pre-Visit Symptom Form */}
           <div className="space-y-3 pt-3 border-t border-slate-100">
             <label className="text-xs font-semibold text-slate-800 flex items-center space-x-1.5">
               <Activity className="w-4 h-4 text-blue-600" />
@@ -249,7 +241,6 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2.5">
             <button
               type="button"
@@ -277,9 +268,7 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
               )}
             </button>
           </div>
-
         </form>
-
       </div>
     </div>
   );
