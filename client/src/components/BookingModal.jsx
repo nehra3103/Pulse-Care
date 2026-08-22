@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Activity, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = (import.meta.env.VITE_API_URL || 'https://pulse-care-backend-pz3p.onrender.com').replace(/\/$/, '');
 
 export default function BookingModal({ doctor, patient, onClose, onBookingSuccess }) {
   const tomorrow = new Date();
@@ -40,7 +40,7 @@ export default function BookingModal({ doctor, patient, onClose, onBookingSucces
         setErrorMsg(data.error || 'Failed to load time slots');
       }
     } catch (err) {
-      setErrorMsg('Network error fetching slots');
+      setErrorMsg(`Network error fetching slots from ${API_URL}`);
     } finally {
       setLoadingSlots(false);
     }
