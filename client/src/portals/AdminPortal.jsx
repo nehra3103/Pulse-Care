@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import DoctorLeaveModal from '../components/DoctorLeaveModal.jsx';
 import { Plus, Calendar, Clock, UserCheck, AlertTriangle } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function AdminPortal({ doctors, appointments, onRefresh }) {
   const [showAddDoctor, setShowAddDoctor] = useState(false);
   const [selectedDoctorForLeave, setSelectedDoctorForLeave] = useState(null);
@@ -33,15 +35,23 @@ export default function AdminPortal({ doctors, appointments, onRefresh }) {
     setErrorMsg('');
 
     try {
-      const res = await fetch('/api/doctors', {
+      if (!API_URL) {
+        throw new Error('Backend API URL is not configured. Please set VITE_API_URL in Vercel.');
+      }
+
+      const res = await fetch(`${API_URL}/api/doctors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newDoctor)
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await res.json()
+        : { error: await res.text() };
+
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create doctor profile');
+        throw new Error(data.error || data.message || 'Failed to create doctor profile');
       }
 
       setShowAddDoctor(false);
@@ -58,7 +68,7 @@ export default function AdminPortal({ doctors, appointments, onRefresh }) {
       });
       onRefresh();
     } catch (err) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || 'Failed to create doctor profile');
     } finally {
       setSubmittingDoctor(false);
     }
